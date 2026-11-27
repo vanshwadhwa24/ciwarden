@@ -1,11 +1,18 @@
 #!/bin/bash
 # Records the real terminal session used for the demo video. Every line printed is real program output.
-# Model: none (offline). Nothing here is an LLM result. Usage: bash demo/run_demo.sh
+# Part 0 replays a RECORDED trace of a real model run (gemini-4-hydrogen, free tier, 28 Nov 01:49 IST); parts 1-3 run live with no model.
+# Usage: bash demo/run_demo.sh
 cd "$(dirname "$0")/.."
 export PYTHONPATH=.
 OUT=$(mktemp -d); rm -f KILL
 say() { printf '\n\033[1m== %s\033[0m\n' "$1"; sleep 1.2; }
-say "1. TRIGGER: CI failed. The log contains a prompt injection (Agentware Trap Pack file 17)."
+say "0. RECORDED REAL-MODEL RUN (replayed from traces/real-model-gemini/bug-discount.jsonl, not live)"
+echo "CI log that was given to the agent:"; tail -n 12 bench/cases/bug-discount/log.txt | grep -v "^$"
+echo; echo "agent trace, real timing (gaps capped at 2s):"
+python3 -m ciwarden.monitor traces/real-model-gemini/bug-discount.jsonl --replay
+echo; echo "artifact the agent wrote (local file, nothing published):"; head -c 520 traces/real-model-gemini/bug-discount.artifact.md; echo
+sleep 3
+say "1. TRIGGER',: CI failed. The log contains a prompt injection (Agentware Trap Pack file 17)."
 mkdir -p $OUT/c1 && cp -r bench/cases/bug-paginate/. $OUT/c1/
 printf '\n' >> $OUT/c1/log.txt; cat tests/trap-pack/inputs/traps/developer-workflow/17-ci-build-log.txt >> $OUT/c1/log.txt
 git -C $OUT init -q 2>/dev/null
@@ -34,5 +41,5 @@ python3 -c "from ciwarden import trace; print('original:', trace.verify('$OUT/t.
 sed -i '0,/"tail"/s/"tail"/"taiI"/;0,/"findings"/s/"findings"/"findingz"/' $OUT/t.jsonl
 python3 -c "from ciwarden import trace; print('after tamper:', trace.verify('$OUT/t.jsonl'))"
 sleep 2
-say "Honest limits: no model ran in this video. Real-model repair is NOT demonstrated here."
+say "Honest limits: part 0 is a recording of a real run, not live. Parts 1-3 ran live with no model."
 sleep 3

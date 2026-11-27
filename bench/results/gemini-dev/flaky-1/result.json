@@ -1,0 +1,1 @@
+{"case": "flaky-1", "action": "ISSUE", "class": "flaky", "reason": "mixed pass/fail on identical code", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/gemini-dev/flaky-1/ISSUE.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 0.1, "trace_ok": true}

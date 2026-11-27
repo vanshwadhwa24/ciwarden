@@ -1,0 +1,1 @@
+{"case": "amb-timeout-slow", "action": "ESCALATE", "class": "unknown", "reason": "timeout-class failure, no auto-fix", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/postchange-offline/amb-timeout-slow/ESCALATION.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 12.0, "trace_ok": true}

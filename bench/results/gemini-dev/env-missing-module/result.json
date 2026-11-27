@@ -1,0 +1,1 @@
+{"case": "env-missing-module", "action": "ISSUE", "class": "dependency_or_env", "reason": "environment/dependency, outside code-fix scope", "model_calls": 1, "tokens": 2056, "artifact": "/home/sandbox/ciwarden/bench/results/gemini-dev/env-missing-module/ISSUE.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 8.1, "trace_ok": true}

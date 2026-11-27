@@ -1,0 +1,1 @@
+{"case": "bug-dict-default", "action": "ESCALATE", "class": "unknown", "reason": "model error: model HTTP 503", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/gemini-held/bug-dict-default/ESCALATION.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 3.7, "trace_ok": true}

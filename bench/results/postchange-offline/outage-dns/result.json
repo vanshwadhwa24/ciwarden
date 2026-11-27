@@ -1,0 +1,1 @@
+{"case": "outage-dns", "action": "ISSUE", "class": "external_outage", "reason": "not reproducible locally", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/postchange-offline/outage-dns/ISSUE.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 0.3, "trace_ok": true}

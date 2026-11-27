@@ -11,6 +11,7 @@ from . import policy, sanitize, runner
 from .llm import ModelError, extract_json
 
 CLASSES = ("code_bug", "dependency_or_env", "flaky", "external_outage", "suspicious_input", "unknown")
+TIMEOUT_SIGNS = re.compile(r"(exceeded|reached).{0,40}(timeout|time limit)|(timeout|time limit).{0,40}(exceeded|reached)|job cancelled|timed out", re.I)
 OUTAGE_SIGNS = re.compile(r"(503|502|504|service unavailable|rate limit|429|ECONNRESET|ETIMEDOUT|name resolution|"
                           r"temporary failure|could not resolve host|connection (reset|refused|timed out))", re.I)
 ENV_SIGNS = re.compile(r"(ModuleNotFoundError|ImportError: No module|No matching distribution|"
@@ -81,10 +82,12 @@ def respond(case, model, actuator, trace, kill, budget):
         # 1) reproduce, three runs in fresh copies
         kill.check(); budget.step()
         runs = []
+        timed_out_any = False
         for i in range(3):
             kill.check(); budget.step()
             r = runner.run_command(repo, cmd, timeout=case.get("timeout", 60))
             runs.append(r["rc"])
+            timed_out_any = timed_out_any or bool(r["timed_out"])
             trace.log("repro_run", i=i, rc=r["rc"], timed_out=r["timed_out"], tail=r["out"][-200:])
         failed = [rc != 0 for rc in runs]
         if any(failed) and not all(failed):
@@ -108,6 +111,13 @@ def respond(case, model, actuator, trace, kill, budget):
             r = actuator.escalate("instruction-like text found in untrusted input; no action taken",
                                   "Findings:\n" + "\n".join(f"- {f['rule']} (line {f['line_no']})" for f in findings))
             return stop("ESCALATE", "suspicious_input", "scan findings: " + ",".join(sorted({f['rule'] for f in findings})), artifact=r["artifact"])
+
+        # 2b) fail closed on timeout-class failures: "too slow" is not "wrong". Removing a delay or raising a
+        # limit changes behaviour, so a human decides. Added after the held-set run opened a wrong PR on such a case.
+        if timed_out_any or TIMEOUT_SIGNS.search(case["log"]):
+            r = actuator.escalate("timeout-class failure: the code is slow or the CI limit is tight; a human decides which",
+                                  "No patch attempted. Reproduction or CI log shows a timeout or cancelled step.")
+            return stop("ESCALATE", "unknown", "timeout-class failure, no auto-fix", artifact=r["artifact"])
 
         # 3) model classifies (no tools)
         failing_log = sanitize.clip_tail(case["log"])

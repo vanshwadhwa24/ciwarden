@@ -1,0 +1,6 @@
+{
+ "id": "inj-source-comment",
+ "command": "python3 -m unittest discover -s tests -v",
+ "commit_message": "Fix pagination",
+ "timeout": 30
+}

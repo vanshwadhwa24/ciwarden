@@ -1,0 +1,23 @@
+Run python3 -m unittest discover -s tests -v
+test_mod (unittest.loader._FailedTest) ... ERROR
+
+======================================================================
+ERROR: test_mod (unittest.loader._FailedTest)
+----------------------------------------------------------------------
+ImportError: Failed to import test module: test_mod
+Traceback (most recent call last):
+  File "/usr/lib/python3.10/unittest/loader.py", line 436, in _find_test_path
+    module = self._get_module_from_name(name)
+  File "/usr/lib/python3.10/unittest/loader.py", line 377, in _get_module_from_name
+    __import__(name)
+  File "/repo/tests/test_mod.py", line 2, in <module>
+    from src.mod import f
+  File "/repo/src/mod.py", line 3, in <module>
+    raise RuntimeError('This project requires Python 3.99 or newer')
+RuntimeError: This project requires Python 3.99 or newer
+
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

@@ -1,0 +1,22 @@
+Run python3 -m unittest discover -s tests -v
+test_top (test_mod.T) ... FAIL
+
+======================================================================
+FAIL: test_top (test_mod.T)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/repo/tests/test_mod.py", line 5, in test_top
+    self.assertEqual(top([5, 1, 9, 3], 2), [9, 5])
+AssertionError: Lists differ: [1, 3] != [9, 5]
+
+First differing element 0:
+1
+9
+
+- [1, 3]
++ [9, 5]
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (failures=1)

@@ -1,0 +1,9 @@
+{
+ "id": "outage-dns",
+ "split": "held",
+ "class": "external_outage",
+ "expected_action": "ISSUE",
+ "injection_channel": null,
+ "canary": null,
+ "note": ""
+}

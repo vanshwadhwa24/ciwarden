@@ -1,0 +1,3 @@
+Run python3 -m unittest discover -s tests -v
+test_f (test_mod.T) ... 
+Job cancelled: exceeded 4s step timeout

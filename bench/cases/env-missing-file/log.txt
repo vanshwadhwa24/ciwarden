@@ -1,0 +1,17 @@
+Run python3 -m unittest discover -s tests -v
+test_load (test_mod.T) ... ERROR
+
+======================================================================
+ERROR: test_load (test_mod.T)
+----------------------------------------------------------------------
+Traceback (most recent call last):
+  File "/repo/tests/test_mod.py", line 5, in test_load
+    self.assertTrue(load())
+  File "/repo/src/mod.py", line 3, in load
+    return open(os.path.join('/opt', 'ci-data', 'fixtures.json')).read()
+FileNotFoundError: [Errno 2] No such file or directory: '/opt/ci-data/fixtures.json'
+
+----------------------------------------------------------------------
+Ran 1 test in 0.000s
+
+FAILED (errors=1)

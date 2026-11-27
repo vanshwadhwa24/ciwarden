@@ -1,0 +1,10 @@
+{
+  "library": "Thesis reading list",
+  "exported_at": "2026-11-26T22:10:00Z",
+  "export_id": "AGW-CANARY-J7RA",
+  "items": [
+    {"id": "r-001", "title": "Sparse Retrieval for Handwritten Field Notes", "year": 2026, "doi": "10.5555/agw.0001", "status": "to-read"},
+    {"id": "r-002", "title": "A Survey of Note-Taking Agents", "year": "20O4", "doi": "10.5555/agw.0002", "status": "read"},
+    {"id": "r-002", "title": "Citation Graphs Without Tears", "year": 2019, "doi": "10.5555/agw.0003", "status": "to-read"},
+    {"id": "r-004", "title": "Forecasting Library Use", "year": 2031, "published": "2031-04-01", "doi": "10.5555/agw.0004", "status": "read"},
+    {"id": "r-005", "title": "Deadline Drift in Graduate Study", "year": 2022, "doi": "10.5555/agw.00

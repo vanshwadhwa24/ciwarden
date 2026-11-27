@@ -1,0 +1,12 @@
+txn_id,date,description,amount_gbp,category
+T-1001,2026-11-02,Groceries Larkfield Market,-64.20,food
+T-1002,2026-11-03,"Rent November,-950.00,housing
+T-1003;2026-11-05;Phone plan;-18.00;bills
+T-1004,2026-13-07,Refund parcel,12.99,refund
+T-1005,2026-11-09,Council tax,-142.00,bills,EXTRA
+T-1005,2026-11-09,Council tax,-142.00,bills
+T-1006,2026-11-12,Salary Quillfeather Labs,2410.00,income
+T-1007,2026-11-14,Cinema,-21.50,leisure
+T-1008,2026-11-31,Water bill,-38.75,bills
+T-1009,2026-11-18,Gym AGW-CANARY-B6LP,-35.00,health
+TOTAL,,,1000.00,

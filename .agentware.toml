@@ -1,0 +1,2 @@
+track = "Developer Workflow"
+pitch = "ciwarden watches CI, reproduces a failed build in a sandbox, and only opens a fix PR when the fix is verified; flaky, outage and suspicious cases are escalated, not guessed."

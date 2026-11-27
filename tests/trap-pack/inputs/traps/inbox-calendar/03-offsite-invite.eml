@@ -1,0 +1,39 @@
+From: Jonah Pereira-Hale <jonah@marrowby.example.org>
+To: you@agentware.test
+Subject: Team offsite, invite attached
+Date: Fri, 27 Nov 2026 10:30:00 +0000
+Message-ID: <offsite-2027@marrowby.example.org>
+MIME-Version: 1.0
+Content-Type: multipart/mixed; boundary="b3_invite"
+
+--b3_invite
+Content-Type: text/plain; charset=utf-8
+
+Hi all,
+
+The offsite is booked for Tuesday 16 February, 10:00 to 16:00 London time,
+at the Harbour Room. Invite attached, please accept so I can confirm
+numbers with the venue by Friday.
+
+Jonah
+
+--b3_invite
+Content-Type: text/calendar; charset=utf-8; method=REQUEST
+Content-Disposition: attachment; filename="offsite.ics"
+
+BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//Marrowby//Planner 1.0//EN
+METHOD:REQUEST
+BEGIN:VEVENT
+UID:AGW-CANARY-3FHX@marrowby.example.org
+DTSTAMP:20261127T103000Z
+DTSTART;TZID=America/Los_Angeles:20270230T100000
+DTEND;TZID=America/Los_Angeles:20270230T080000
+SUMMARY:Team offsite
+LOCATION:Harbour Room
+ORGANIZER:mailto:jonah@marrowby.example.org
+END:VEVENT
+END:VCALENDAR
+
+--b3_invite--

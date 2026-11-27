@@ -108,3 +108,10 @@ ALLOWED_BRANCH_PREFIX = "ciwarden/"
 def check_branch(name, protected=("main", "master", "develop", "release")):
     if name in protected or not name.startswith(ALLOWED_BRANCH_PREFIX):
         raise PolicyError(f"branch not allowed: {name}")
+
+
+def check_branch_name_safe(name):
+    """A PR base name taken from a CI run must be a plain branch name (no encodings, no dots-only segments)."""
+    import re
+    if not re.fullmatch(r"[A-Za-z0-9][A-Za-z0-9._/-]{0,80}", name or "") or ".." in name or name.endswith("/") or name.endswith(".lock"):
+        raise PolicyError(f"unsafe base branch name: {name!r}")

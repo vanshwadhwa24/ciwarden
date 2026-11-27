@@ -48,6 +48,7 @@ def main(argv=None):
     w.add_argument("--out", default="watch-out")
     w.add_argument("--interval", type=int, default=60)
     w.add_argument("--once", action="store_true")
+    w.add_argument("--dry-run", action="store_true", help="read real runs, make NO writes, save planned posts to planned.json")
     w.add_argument("--model", default=llm.DEFAULT_MODEL)
     w.add_argument("--replay")
     a = ap.parse_args(argv)
@@ -58,7 +59,7 @@ def main(argv=None):
         kill = policy.KillSwitch()
         tok = os.environ.get("GITHUB_TOKEN")
         if a.once:
-            print(json.dumps(watch.watch_once(client, model, kill, a.out, set(), token=tok), indent=2))
+            print(json.dumps(watch.watch_once(client, model, kill, a.out, set(), token=tok, dry_run=a.dry_run), indent=2))
         else:
             watch.watch_loop(client, model, kill, a.out, a.interval, token=tok)
         return 0

@@ -50,6 +50,9 @@ class Client:
         b = r["default_branch"]
         return b, self._req("GET", f"/repos/{self.repo}/git/ref/heads/{b}")["object"]["sha"]
 
+    def branch_sha(self, branch):
+        return self._req("GET", f"/repos/{self.repo}/git/ref/heads/{urllib.parse.quote(branch, safe='/')}")["object"]["sha"]
+
     # ---- writes (policy checked by the actuator before these are called)
     def create_branch(self, name, sha):
         return self._req("POST", f"/repos/{self.repo}/git/refs", {"ref": "refs/heads/" + name, "sha": sha})
@@ -76,14 +79,17 @@ class Client:
 class GitHubActuator:
     """Same interface as LocalActuator. Never writes to the default branch, workflows, or tests."""
 
-    def __init__(self, client, kill):
-        self.c, self.kill = client, kill
+    def __init__(self, client, kill, base=None):
+        self.c, self.kill, self.base = client, kill, base
 
     def open_pr(self, branch, files, title, body):
         self.kill.check()
         policy.check_branch(branch)
         policy.check_patch_paths(files)
         base, sha = self.c.default_branch_sha()
+        if self.base and self.base != base:  # a failing run on another branch: fix proposals target that branch
+            policy.check_branch_name_safe(self.base)
+            base, sha = self.base, self.c.branch_sha(self.base)
         self.kill.check()
         self.c.create_branch(branch, sha)
         for f in files:
@@ -101,3 +107,25 @@ class GitHubActuator:
         self.kill.check()
         i = self.c.open_issue("[ciwarden] needs a human: " + reason[:80], f"{reason}\n\n{body}", ["needs-human"])
         return {"kind": "escalation", "artifact": i.get("html_url")}
+
+
+class DryRunActuator:
+    """Same interface, performs NO writes. Records what the agent would have posted, for human review."""
+
+    def __init__(self, kill):
+        self.kill, self.planned = kill, []
+
+    def open_pr(self, branch, files, title, body):
+        self.kill.check(); policy.check_branch(branch); policy.check_patch_paths(files)
+        self.planned.append({"kind": "pr", "branch": branch, "files": [f["path"] for f in files], "title": title, "body": body})
+        return {"kind": "pr", "branch": branch, "artifact": "DRY-RUN (not posted)"}
+
+    def open_issue(self, title, body, labels=()):
+        self.kill.check()
+        self.planned.append({"kind": "issue", "title": title, "body": body, "labels": list(labels)})
+        return {"kind": "issue", "artifact": "DRY-RUN (not posted)"}
+
+    def escalate(self, reason, body):
+        self.kill.check()
+        self.planned.append({"kind": "escalation", "reason": reason, "body": body})
+        return {"kind": "escalation", "artifact": "DRY-RUN (not posted)"}

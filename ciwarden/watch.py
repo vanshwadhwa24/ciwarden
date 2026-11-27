@@ -30,7 +30,7 @@ def build_case(run, log, repo_dir):
             "commit_message": (run.get("head_commit") or {}).get("message", ""), "log": log}
 
 
-def watch_once(client, model, kill, out_root, seen, clone=clone_repo, token=None, budget=None):
+def watch_once(client, model, kill, out_root, seen, clone=clone_repo, token=None, budget=None, dry_run=False):
     if not runner.SANDBOX_AVAILABLE or runner.FIXTURE_MODE:
         raise runner.IsolationUnavailable("watch runs untrusted repo code and requires the bwrap sandbox; unisolated fixture mode is refused")
     done = []
@@ -46,11 +46,15 @@ def watch_once(client, model, kill, out_root, seen, clone=clone_repo, token=None
             out = os.path.join(out_root, case["id"] if case else f"run-{run['id']}")
             os.makedirs(out, exist_ok=True)
             trace = tr.Trace(os.path.join(out, "trace.jsonl"))
-            act = github.GitHubActuator(client, kill)
+            act = github.DryRunActuator(kill) if dry_run else github.GitHubActuator(client, kill, base=run.get("head_branch"))
             if case is None:
                 done.append({"run": run["id"], "outcome": "SKIPPED no .ciwarden.json"})
                 continue
-            done.append({"run": run["id"], **agent.respond(case, model, act, trace, kill, budget or policy.Budget())})
+            res = agent.respond(case, model, act, trace, kill, budget or policy.Budget())
+            if dry_run:
+                res["planned"] = act.planned
+                json.dump(act.planned, open(os.path.join(out, "planned.json"), "w"), indent=2)
+            done.append({"run": run["id"], "branch": run.get("head_branch"), **res})
         finally:
             shutil.rmtree(work, ignore_errors=True)
     return done

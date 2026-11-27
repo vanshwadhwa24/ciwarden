@@ -36,6 +36,17 @@ class H(BaseHTTPRequestHandler):
         self._send({}, 201)
 
 
+class DryRunTests(unittest.TestCase):
+    def test_dry_run_makes_no_writes_and_checks_policy(self):
+        a = github.DryRunActuator(policy.KillSwitch())
+        a.open_pr("ciwarden/fix-1", [{"path": "src/mod.py", "content": "x=1"}], "t", "b")
+        with self.assertRaises(policy.PolicyError):
+            a.open_pr("main", [{"path": "src/mod.py", "content": "x=1"}], "t", "b")
+        with self.assertRaises(policy.PolicyError):
+            policy.check_branch_name_safe("a/../b")
+        self.assertEqual(len(a.planned), 1)
+
+
 class GhTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):

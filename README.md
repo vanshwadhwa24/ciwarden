@@ -18,6 +18,8 @@ Isolation: untrusted repo code runs only inside a bubblewrap sandbox (new user/p
     python3 -m ciwarden.cli respond bench/cases/<case> --out out/ --replay <recorded.jsonl>
     GITHUB_TOKEN=... python3 -m ciwarden.cli watch owner/repo --once
 
+`watch --dry-run` reads real failed runs and logs and writes NOTHING; it saves what it would post to `planned.json`. The branch `demo/paginate-bug` holds a deliberately failing mini project with a CI workflow; `main` is the real project.
+
 Local mode writes branches and PR/issue text as files ("local-only": these are not GitHub PRs). `watch` uses the real GitHub API; it has been tested only against a local fake API server so far.
 
 ## Benchmark

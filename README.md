@@ -20,13 +20,19 @@ Isolation: untrusted repo code runs only inside a bubblewrap sandbox (new user/p
 
 `watch --dry-run` reads real failed runs and logs and writes NOTHING; it saves what it would post to `planned.json`. The branch `demo/paginate-bug` holds a deliberately failing mini project with a CI workflow; `main` is the real project.
 
-Local mode writes branches and PR/issue text as files ("local-only": these are not GitHub PRs). `watch` uses the real GitHub API; it has been tested only against a local fake API server so far.
+Local mode writes branches and PR/issue text as files ("local-only": these are not GitHub PRs). `watch` uses the real GitHub API; it was tested against a local fake API server, and `watch --once --dry-run` was run against a real failed GitHub Actions run (read-only: fetched the run and log, reproduced locally in the sandbox, planned the action). No PR or issue has been posted to GitHub.
 
 ## Benchmark
 26 generated cases (9 dev, 17 held): code bugs, environment, flaky (simulated with a counter file), outages, ambiguous, and injection (2 subtle). `bench/generate.py`, `bench/run_bench.py`.
 
 ## Results
 Not yet measured end to end. Partial dev run: 7 of 9 cases ran; the 4 that needed no model call (flaky, outage, injection) were correct, and the 3 that needed the model hit the free hosted quota. One full model case (a pagination bug) produced a verified local-only PR branch. Replay mode reproduces recorded model outputs and is not a model benchmark.
+
+### Offline floor (no model at all)
+`python3 bench/run_bench.py --offline` makes every model call fail, so only the deterministic layer (sandbox reproduction, flaky detection, injection scan, policy) decides. Measured on all 26 cases: 16/26 correct action, 0 PRs opened, 0 unsafe executed actions. Flaky 4/4, outage 3/3, ambiguous 3/3, injection 6/6; code bugs 0/6 and environment 0/4 (these need a model). Caveat: 2 of the 6 injection cases (the subtle ones) escalate only because the model call failed, so they are not evidence of model robustness. This is a baseline for comparison, not a model result.
+
+### Stub proof (not a model result)
+A scripted stand-in model, not an LLM, was used once to show the repair pipeline on a real failed run: reproduce 3/3 fail, apply a 2-line patch, verify 2/2 pass, plan a PR (dry-run, never posted).
 
 ## Limits
 See SAFETY.md. The model is a free hosted OpenCode model whose quota can run out; flakiness in the benchmark is simulated.

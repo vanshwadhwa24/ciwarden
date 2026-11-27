@@ -44,7 +44,7 @@ def main():
             return llm.OfflineModel()
         if a.replay:
             return llm.ReplayModel(a.replay)
-        m = llm.OpenCodeModel(a.model)
+        m = llm.make_model(a.model)
         return llm.RecordingModel(m, a.record) if a.record else m
 
     def one(cid):

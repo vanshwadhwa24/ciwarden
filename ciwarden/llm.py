@@ -137,3 +137,42 @@ class OfflineModel:
 
     def complete(self, prompt):
         raise ModelError("offline baseline: no model configured")
+
+
+class OpenAICompatModel:
+    """Any OpenAI-compatible chat endpoint (for example Gemini's free tier). Select with
+    CIWARDEN_MODEL=compat:<model-name>, CIWARDEN_API_BASE=<base url>, CIWARDEN_API_KEY=<key in env only>.
+    The model gets no tools; output is parsed as text like every other model here."""
+    name = "compat"
+
+    def __init__(self, model, timeout=60):
+        self.model, self.timeout = model, timeout
+        self.base = os.environ.get("CIWARDEN_API_BASE", "").rstrip("/")
+        self.key = os.environ.get("CIWARDEN_API_KEY", "")
+
+    def complete(self, prompt):
+        import urllib.request, urllib.error
+        if not (self.base and self.key):
+            raise ModelError("CIWARDEN_API_BASE / CIWARDEN_API_KEY not set")
+        body = json.dumps({"model": self.model, "messages": [{"role": "user", "content": prompt}]}).encode()
+        req = urllib.request.Request(self.base + "/chat/completions", data=body, headers={
+            "Content-Type": "application/json", "Authorization": "Bearer " + self.key})
+        try:
+            d = json.load(urllib.request.urlopen(req, timeout=self.timeout))
+        except urllib.error.HTTPError as e:
+            if e.code == 429:
+                raise QuotaError("rate limit or quota reached (HTTP 429); retry-after: %s" % e.headers.get("retry-after", "not given"))
+            raise ModelError("model HTTP %s" % e.code)
+        except Exception as e:
+            raise ModelError("model call failed: %s" % type(e).__name__)
+        text = (d.get("choices") or [{}])[0].get("message", {}).get("content") or ""
+        if not text:
+            raise ModelError("empty model output")
+        return {"text": text, "tokens": (d.get("usage") or {}).get("total_tokens", 0), "tool_calls_attempted": 0, "model": self.model}
+
+
+def make_model(name=None):
+    name = name or DEFAULT_MODEL
+    if name.startswith("compat:"):
+        return OpenAICompatModel(name[len("compat:"):])
+    return OpenCodeModel(name)

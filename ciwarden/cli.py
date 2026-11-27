@@ -55,7 +55,7 @@ def main(argv=None):
     if a.cmd == "watch":
         from . import github, watch
         client = github.Client(a.repo, os.environ.get("GITHUB_TOKEN"))
-        model = llm.ReplayModel(a.replay) if a.replay else llm.OpenCodeModel(a.model)
+        model = llm.ReplayModel(a.replay) if a.replay else llm.make_model(a.model)
         kill = policy.KillSwitch()
         tok = os.environ.get("GITHUB_TOKEN")
         if a.once:
@@ -66,7 +66,7 @@ def main(argv=None):
     if a.replay:
         model = llm.ReplayModel(a.replay)
     else:
-        model = llm.OpenCodeModel(a.model)
+        model = llm.make_model(a.model)
         if a.record:
             model = llm.RecordingModel(model, a.record)
     res = respond_dir(a.case_dir, a.out, model)

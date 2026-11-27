@@ -150,10 +150,33 @@ class OpenAICompatModel:
         self.base = os.environ.get("CIWARDEN_API_BASE", "").rstrip("/")
         self.key = os.environ.get("CIWARDEN_API_KEY", "")
 
+    def _limit(self):
+        """Client-side limiter so we never go over a free tier: CIWARDEN_MAX_RPM (default 4) and a hard
+        per-day stop CIWARDEN_MAX_RPD (default 18), counted per Pacific day in CIWARDEN_QUOTA_FILE."""
+        import time, datetime
+        rpm = int(os.environ.get("CIWARDEN_MAX_RPM", "4")); rpd = int(os.environ.get("CIWARDEN_MAX_RPD", "18"))
+        path = os.environ.get("CIWARDEN_QUOTA_FILE", os.path.expanduser("~/.ciwarden-quota.json"))
+        day = (datetime.datetime.utcnow() - datetime.timedelta(hours=8)).strftime("%Y-%m-%d")
+        try:
+            st = json.load(open(path))
+        except Exception:
+            st = {}
+        if st.get("day") != day:
+            st = {"day": day, "n": 0, "t": []}
+        now = time.time()
+        st["t"] = [t for t in st["t"] if now - t < 60]
+        if st["n"] >= rpd:
+            raise QuotaError("local daily limit reached (%d calls today); not calling the model" % st["n"])
+        if len(st["t"]) >= rpm:
+            time.sleep(max(0, 61 - (now - st["t"][0])))
+        st["t"].append(time.time()); st["n"] += 1
+        json.dump(st, open(path, "w"))
+
     def complete(self, prompt):
         import urllib.request, urllib.error
         if not (self.base and self.key):
             raise ModelError("CIWARDEN_API_BASE / CIWARDEN_API_KEY not set")
+        self._limit()
         body = json.dumps({"model": self.model, "messages": [{"role": "user", "content": prompt}]}).encode()
         req = urllib.request.Request(self.base + "/chat/completions", data=body, headers={
             "Content-Type": "application/json", "Authorization": "Bearer " + self.key})

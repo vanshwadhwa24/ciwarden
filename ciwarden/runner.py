@@ -93,13 +93,39 @@ def fresh_copy(repo_dir):
     return d, dst
 
 
+KILL_CHECK = None  # set by the agent; called while a command runs so the kill switch cancels it mid-run
+
+
+def _run(argv, timeout, env, cwd):
+    """subprocess.run replacement that polls the kill switch every 0.2s and kills the process group."""
+    import signal, time
+    p = subprocess.Popen(argv, cwd=cwd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, env=env, start_new_session=True)
+    t0 = time.time()
+    while True:
+        try:
+            if KILL_CHECK:
+                KILL_CHECK()
+            out, err = p.communicate(timeout=0.2)
+            return subprocess.CompletedProcess(argv, p.returncode, out, err)
+        except subprocess.TimeoutExpired:
+            if time.time() - t0 > timeout:
+                os.killpg(p.pid, signal.SIGKILL); p.communicate()
+                raise
+        except BaseException:
+            try:
+                os.killpg(p.pid, signal.SIGKILL)
+            except ProcessLookupError:
+                pass
+            p.communicate()
+            raise
+
+
 def run_command(repo_dir, command, timeout=60, env=None):
     """Returns {rc, out, timed_out}. Runs in a fresh copy so runs never contaminate each other."""
     d, dst = fresh_copy(repo_dir)
     try:
         try:
-            p = subprocess.run(sandbox_argv(dst, _state_dir(repo_dir), shlex.split(command), timeout), cwd=(dst if FIXTURE_MODE and not SANDBOX_AVAILABLE else None),
-                               capture_output=True, text=True, timeout=timeout, env=scrubbed_env(env), start_new_session=True)
+            p = _run(sandbox_argv(dst, _state_dir(repo_dir), shlex.split(command), timeout), timeout, scrubbed_env(env), (dst if FIXTURE_MODE and not SANDBOX_AVAILABLE else None))
             return {"rc": p.returncode, "out": (p.stdout + p.stderr)[-8000:], "timed_out": False}
         except subprocess.TimeoutExpired as e:
             return {"rc": 124, "out": "timed out", "timed_out": True}
@@ -128,8 +154,7 @@ def run_with_patch(repo_dir, command, files, timeout=60):
             with open(target, "w") as fh:
                 fh.write(f["content"] if f["content"].endswith("\n") else f["content"] + "\n")
         try:
-            p = subprocess.run(sandbox_argv(dst, _state_dir(repo_dir), shlex.split(command), timeout), cwd=(dst if FIXTURE_MODE and not SANDBOX_AVAILABLE else None),
-                               capture_output=True, text=True, timeout=timeout, env=scrubbed_env(), start_new_session=True)
+            p = _run(sandbox_argv(dst, _state_dir(repo_dir), shlex.split(command), timeout), timeout, scrubbed_env(), (dst if FIXTURE_MODE and not SANDBOX_AVAILABLE else None))
             return {"rc": p.returncode, "out": (p.stdout + p.stderr)[-4000:], "changed_lines": changed}
         except subprocess.TimeoutExpired:
             return {"rc": 124, "out": "timed out", "changed_lines": changed}

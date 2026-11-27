@@ -67,6 +67,7 @@ def _py_files(repo):
 
 def respond(case, model, actuator, trace, kill, budget):
     """case: {repo, command, log, commit_message, id}. Returns outcome dict. Never raises on policy stops."""
+    runner.KILL_CHECK = kill.check
     repo, cmd = case["repo"], case["command"]
     result = {"case": case["id"], "action": None, "class": None, "reason": None, "model_calls": 0, "tokens": 0}
 

@@ -173,6 +173,8 @@ class OpenAICompatModel:
 
 def make_model(name=None):
     name = name or DEFAULT_MODEL
+    if name == "offline":
+        return OfflineModel()
     if name.startswith("compat:"):
         return OpenAICompatModel(name[len("compat:"):])
     return OpenCodeModel(name)

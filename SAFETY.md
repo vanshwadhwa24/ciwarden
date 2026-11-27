@@ -15,6 +15,9 @@ Enforced:
 - The GitHub token is read from `GITHUB_TOKEN` and is never passed to the model process.
 
 Not enforced / known limits:
+- Execution isolation is a scrubbed environment, a fresh copy, a timeout and an empty network namespace (where the kernel allows it). It is not a container or filesystem sandbox: hostile repo code can still read files the process user can read. Run it on a throwaway machine.
+- The GitHub contents API writes only regular files with default mode; symlink patch paths are refused locally. This is tested against a local fake API, not against real GitHub.
+- A test-passing but malicious change to allowed source files is not detected.
 - The instruction-like-text tripwire (`sanitize.py`) is a keyword heuristic. It misses paraphrased injections. The real limits are the policy checks and test verification above; a malicious but test-passing patch to allowed source files is not detected.
 - The model could still choose a wrong class (for example call an environment problem a code bug). Verification limits the damage but does not remove it.
 - Flakiness in the benchmark is simulated with a counter file.

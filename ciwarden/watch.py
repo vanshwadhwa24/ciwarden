@@ -1,9 +1,10 @@
 """watch: poll a repo's failed workflow runs, build a case from each new one, respond via GitHubActuator.
-The CI command comes from the repo owner's `.ciwarden.json` on the default branch ({"command": "...", "timeout": 60}),
-never from log text. Cloned repo code is treated as hostile: it only ever runs through runner.py
+.ciwarden.json is untrusted too: it may only pick a runner NAME from a fixed allowlist (unittest, pytest), never a command line. Cloned repo code is treated as hostile: it only ever runs through runner.py
 (scrubbed env, no network when the kernel allows it, fresh copy, timeout)."""
 import json, os, subprocess, tempfile, shutil, time
-from . import agent, policy, trace as tr, github
+from . import agent, policy, trace as tr, github, runner
+
+RUNNERS = {"unittest": "python3 -m unittest discover -s tests", "pytest": "python3 -m pytest -q"}
 
 
 def clone_repo(repo, sha, token, dest):
@@ -22,11 +23,16 @@ def build_case(run, log, repo_dir):
     if not os.path.isfile(cfgp) or os.path.islink(cfgp):
         return None
     cfg = json.load(open(cfgp))
-    return {"id": f"run-{run['id']}", "repo": repo_dir, "command": cfg["command"], "timeout": cfg.get("timeout", 60),
+    command = RUNNERS.get(cfg.get("runner"))  # the repo file picks a NAME; it never supplies a command line
+    if command is None:
+        return None
+    return {"id": f"run-{run['id']}", "repo": repo_dir, "command": command, "timeout": min(int(cfg.get("timeout", 60)), 120),
             "commit_message": (run.get("head_commit") or {}).get("message", ""), "log": log}
 
 
 def watch_once(client, model, kill, out_root, seen, clone=clone_repo, token=None, budget=None):
+    if not runner.SANDBOX_AVAILABLE or runner.FIXTURE_MODE:
+        raise runner.IsolationUnavailable("watch runs untrusted repo code and requires the bwrap sandbox; unisolated fixture mode is refused")
     done = []
     for run in client.failed_runs():
         if run["id"] in seen:

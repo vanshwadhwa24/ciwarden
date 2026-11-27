@@ -11,11 +11,12 @@ Enforced:
 - Kill switch: a `KILL` file or `CIWARDEN_KILL=1` stops the agent before every tool and model call, and before every GitHub write (`test_kill_switch_stops_everything`, `test_kill_switch_blocks_writes`).
 - Step, time, model-call and token budgets (`policy.Budget`).
 - Every step is appended to a hash-chained JSONL trace; tampering is detected (`trace.py`, `test_chain_verifies_and_detects_tamper`).
-- CI commands run with a scrubbed environment (no tokens) and a timeout (`runner.py`).
 - The GitHub token is read from `GITHUB_TOKEN` and is never passed to the model process.
 
 Not enforced / known limits:
-- Execution isolation is a scrubbed environment, a fresh copy, a timeout and an empty network namespace (where the kernel allows it). It is not a container or filesystem sandbox: hostile repo code can still read files the process user can read. Run it on a throwaway machine.
+- Containment is bubblewrap namespaces plus rlimits, not a VM. A kernel or bwrap escape is out of scope; the process-count limit is per user, not per sandbox. Tested escapes (tests/test_agent.py TestIsolation): reading a canary file in the real home, ~/.gitconfig, token env vars, writing outside the copy or into /usr, network connect, seeing host processes, /memory. Not tested: kernel exploits, resource exhaustion beyond rlimits, timing side channels.
+- Containment fails closed: no bwrap means no untrusted execution (test_fail_closed_without_sandbox; watch refuses, test_watch_refuses_without_sandbox).
+- A repo's .ciwarden.json only picks a runner name from a fixed list (test_command_in_repo_file_is_not_executed).
 - The GitHub contents API writes only regular files with default mode; symlink patch paths are refused locally. This is tested against a local fake API, not against real GitHub.
 - A test-passing but malicious change to allowed source files is not detected.
 - The instruction-like-text tripwire (`sanitize.py`) is a keyword heuristic. It misses paraphrased injections. The real limits are the policy checks and test verification above; a malicious but test-passing patch to allowed source files is not detected.

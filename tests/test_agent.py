@@ -101,14 +101,68 @@ if __name__ == "__main__":
 
 
 class TestIsolation(unittest.TestCase):
-    def test_no_network_and_symlink_refused(self):
-        import tempfile, os
+    ATTACK = (
+        "import os, socket, json\n"
+        "res = {}\n"
+        "home = open('home.txt').read().strip()\n"
+        "res['env'] = [k for k in os.environ if 'TOKEN' in k or 'SECRET' in k]\n"
+        "res['canary_read'] = os.path.exists(os.path.join(home, 'canary.txt'))\n"
+        "res['gitconfig'] = os.path.exists(os.path.expanduser('~/.gitconfig'))\n"
+        "try:\n    open(os.path.join(home, 'escaped.txt'), 'w').write('x'); res['host_write'] = True\n"
+        "except Exception: res['host_write'] = False\n"
+        "try:\n    open('/usr/escaped.txt', 'w').write('x'); res['usr_write'] = True\n"
+        "except Exception: res['usr_write'] = False\n"
+        "try:\n    socket.create_connection(('1.1.1.1', 53), 2); res['net'] = True\n"
+        "except Exception: res['net'] = False\n"
+        "res['procs'] = len([p for p in os.listdir('/proc') if p.isdigit()])\n"
+        "res['memory_dir'] = os.path.exists('/memory')\n"
+        "print('RESULT' + json.dumps(res))\n")
+
+    def setUp(self):
         from ciwarden import runner
-        d = tempfile.mkdtemp()
-        open(os.path.join(d, "a.py"), "w").write("print(1)\n")
-        os.symlink("/etc", os.path.join(d, "lnk"))
-        r = runner.run_with_patch(d, "python3 a.py", [{"path": "lnk/x.py", "content": "x=1"}])
+        if not runner.SANDBOX_AVAILABLE:
+            self.skipTest("bubblewrap unavailable; escape tests only run with containment")
+        self.home = tempfile.mkdtemp(dir=os.path.expanduser("~"))  # outside /tmp so the test proves containment, not a missing path
+        open(os.path.join(self.home, "canary.txt"), "w").write("host secret")
+        os.environ["CIW_TEST_HOME"] = self.home
+        os.environ["GITHUB_TOKEN"] = "ghp_fake_for_test"
+        self.repo = tempfile.mkdtemp()
+        open(os.path.join(self.repo, "attack.py"), "w").write(self.ATTACK)
+        open(os.path.join(self.repo, "home.txt"), "w").write(self.home)
+
+    def tearDown(self):
+        import shutil; shutil.rmtree(self.home, ignore_errors=True)
+        os.environ.pop("GITHUB_TOKEN", None); os.environ.pop("CIW_TEST_HOME", None)
+
+    def test_hostile_repo_cannot_escape(self):
+        from ciwarden import runner
+        r = runner.run_command(self.repo, "python3 attack.py")
+        line = [l for l in r["out"].splitlines() if l.startswith("RESULT")]
+        self.assertTrue(line, r)
+        res = json.loads(line[0][6:])
+        self.assertEqual(res["env"], [])
+        self.assertFalse(res["canary_read"]); self.assertFalse(res["gitconfig"])
+        self.assertFalse(res["host_write"]); self.assertFalse(res["usr_write"])
+        self.assertFalse(res["net"]); self.assertFalse(res["memory_dir"])
+        self.assertLess(res["procs"], 6)
+        self.assertFalse(os.path.exists(os.path.join(self.home, "escaped.txt")))
+
+    def test_patch_path_symlink_refused(self):
+        from ciwarden import runner
+        os.symlink("/etc", os.path.join(self.repo, "lnk"))
+        r = runner.run_with_patch(self.repo, "python3 attack.py", [{"path": "lnk/x.py", "content": "x=1"}])
         self.assertEqual(r["rc"], 98)
-        if runner.NETWORK_ISOLATED:
-            r = runner.run_command(d, "python3 -c \"import socket;socket.create_connection(('1.1.1.1',53),2)\"")
-            self.assertNotEqual(r["rc"], 0)
+
+    def test_fail_closed_without_sandbox(self):
+        from ciwarden import runner
+        old = (runner.SANDBOX_AVAILABLE, runner.FIXTURE_MODE)
+        runner.SANDBOX_AVAILABLE, runner.FIXTURE_MODE = False, False
+        try:
+            with self.assertRaises(runner.IsolationUnavailable):
+                runner.run_command(self.repo, "python3 attack.py")
+        finally:
+            runner.SANDBOX_AVAILABLE, runner.FIXTURE_MODE = old
+
+
+if __name__ == "__main__":
+    unittest.main()

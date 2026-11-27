@@ -11,10 +11,10 @@ STATUS: work in progress. Benchmark results are not published yet (see "Results"
 4. A patch must pass path/size policy, then fail-before / pass-after in fresh copies. Only then is a branch `ciwarden/*` plus a PR proposed. Never the default branch, tests, or workflows.
 5. Every step is written to a hash-chained trace. A kill switch (`KILL` file or `CIWARDEN_KILL=1`) stops everything.
 
-Isolation: CI commands run with a scrubbed environment, a timeout, in a throwaway copy, and in an empty network namespace where the kernel allows it (`runner.NETWORK_ISOLATED`). Symlinks in patch paths are refused. See SAFETY.md for what is enforced and what is not.
+Isolation: untrusted repo code runs only inside a bubblewrap sandbox (new user/pid/net/ipc/uts/mount namespaces; read-only /usr; no home, gitconfig, tokens or env; no network; writes only to a throwaway copy and a tmpfs; CPU/file-size/process limits; copies exclude .git). If bubblewrap is unusable the agent REFUSES to run (fail closed). A separate, explicit `CIWARDEN_UNISOLATED_FIXTURE_MODE=1` exists for our own synthetic fixtures only, and `watch` refuses it. `.ciwarden.json` in a repo can only choose a runner name from a fixed list. Symlinks in patch paths are refused. `python3 -c 'from ciwarden import runner; print(runner.capability())'` prints what is active. See SAFETY.md.
 
 ## Run
-    python3 -m unittest discover -s tests          # 24 tests, no network, no model
+    python3 -m unittest discover -s tests          # 28 tests, no network, no model
     python3 -m ciwarden.cli respond bench/cases/<case> --out out/ --replay <recorded.jsonl>
     GITHUB_TOKEN=... python3 -m ciwarden.cli watch owner/repo --once
 

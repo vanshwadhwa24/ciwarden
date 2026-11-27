@@ -1,0 +1,9 @@
+# Inert template (lives in docs/, not .github/workflows/). To use: copy to .github/workflows/ci.yml in a repo you own.
+name: ci
+on: [push, workflow_dispatch]
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - run: python3 -m unittest discover -s tests

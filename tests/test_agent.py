@@ -98,3 +98,17 @@ class LadderTests(unittest.TestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestIsolation(unittest.TestCase):
+    def test_no_network_and_symlink_refused(self):
+        import tempfile, os
+        from ciwarden import runner
+        d = tempfile.mkdtemp()
+        open(os.path.join(d, "a.py"), "w").write("print(1)\n")
+        os.symlink("/etc", os.path.join(d, "lnk"))
+        r = runner.run_with_patch(d, "python3 a.py", [{"path": "lnk/x.py", "content": "x=1"}])
+        self.assertEqual(r["rc"], 98)
+        if runner.NETWORK_ISOLATED:
+            r = runner.run_command(d, "python3 -c \"import socket;socket.create_connection(('1.1.1.1',53),2)\"")
+            self.assertNotEqual(r["rc"], 0)

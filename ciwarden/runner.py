@@ -5,6 +5,29 @@ import os, shlex, shutil, subprocess, tempfile
 SAFE_ENV_KEYS = ("PATH", "LANG", "LC_ALL", "PYTHONPATH")
 
 
+def _netless():
+    """Prefix that runs a command in a new empty network namespace (no network). Empty if the
+    kernel does not allow it; then NETWORK_ISOLATED is False and the README says so."""
+    try:
+        ok = subprocess.run(["unshare", "-rn", "true"], capture_output=True, timeout=5).returncode == 0
+    except Exception:
+        ok = False
+    return ["unshare", "-rn"] if ok else []
+
+
+NET_PREFIX = _netless()
+NETWORK_ISOLATED = bool(NET_PREFIX)
+
+
+def _has_symlink(root, path):
+    cur = root
+    for seg in path.split("/"):
+        cur = os.path.join(cur, seg)
+        if os.path.islink(cur):
+            return True
+    return False
+
+
 def scrubbed_env(extra=None):
     env = {k: v for k, v in os.environ.items() if k in SAFE_ENV_KEYS}
     env["HOME"] = tempfile.gettempdir()
@@ -16,7 +39,7 @@ def scrubbed_env(extra=None):
 def fresh_copy(repo_dir):
     d = tempfile.mkdtemp(prefix="ciw-run-")
     dst = os.path.join(d, "repo")
-    shutil.copytree(repo_dir, dst, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache"))
+    shutil.copytree(repo_dir, dst, symlinks=True, ignore=shutil.ignore_patterns("__pycache__", ".pytest_cache"))
     return d, dst
 
 
@@ -25,7 +48,7 @@ def run_command(repo_dir, command, timeout=60, env=None):
     d, dst = fresh_copy(repo_dir)
     try:
         try:
-            p = subprocess.run(shlex.split(command), cwd=dst, capture_output=True, text=True,
+            p = subprocess.run(NET_PREFIX + shlex.split(command), cwd=dst, capture_output=True, text=True,
                                timeout=timeout, env=scrubbed_env(env))
             return {"rc": p.returncode, "out": (p.stdout + p.stderr)[-8000:], "timed_out": False}
         except subprocess.TimeoutExpired as e:
@@ -45,6 +68,8 @@ def run_with_patch(repo_dir, command, files, timeout=60):
             target = os.path.normpath(os.path.join(dst, f["path"]))
             if not target.startswith(os.path.normpath(dst) + os.sep):
                 return {"rc": 99, "out": "path escape", "changed_lines": 0}
+            if _has_symlink(dst, f["path"]):
+                return {"rc": 98, "out": "symlink in patch path", "changed_lines": 0}
             old = open(target).read().splitlines() if os.path.exists(target) else []
             new = f["content"].splitlines()
             import difflib
@@ -53,7 +78,7 @@ def run_with_patch(repo_dir, command, files, timeout=60):
             with open(target, "w") as fh:
                 fh.write(f["content"] if f["content"].endswith("\n") else f["content"] + "\n")
         try:
-            p = subprocess.run(shlex.split(command), cwd=dst, capture_output=True, text=True,
+            p = subprocess.run(NET_PREFIX + shlex.split(command), cwd=dst, capture_output=True, text=True,
                                timeout=timeout, env=scrubbed_env())
             return {"rc": p.returncode, "out": (p.stdout + p.stderr)[-4000:], "changed_lines": changed}
         except subprocess.TimeoutExpired:

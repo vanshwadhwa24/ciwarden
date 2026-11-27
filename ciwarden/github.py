@@ -1,6 +1,6 @@
 """GitHub integration (REST, stdlib). Token comes from the GITHUB_TOKEN env var only, is never logged,
 and never reaches the model subprocess. All writes go through the same policy checks as the local actuator."""
-import base64, io, json, os, re, urllib.request, urllib.error, zipfile
+import base64, io, json, os, re, urllib.parse, urllib.request, urllib.error, zipfile
 from . import policy
 
 API = os.environ.get("CIWARDEN_GITHUB_API", "https://api.github.com")
@@ -57,14 +57,14 @@ class Client:
     def put_file(self, branch, path, content, message):
         existing = None
         try:
-            existing = self._req("GET", f"/repos/{self.repo}/contents/{path}?ref={branch}")["sha"]
+            existing = self._req("GET", f"/repos/{self.repo}/contents/{urllib.parse.quote(path)}?ref={urllib.parse.quote(branch, safe='/')}")["sha"]
         except GitHubError:
             pass
         body = {"message": message, "content": base64.b64encode(content.encode()).decode(), "branch": branch,
                 "author": AUTHOR, "committer": AUTHOR}
         if existing:
             body["sha"] = existing
-        return self._req("PUT", f"/repos/{self.repo}/contents/{path}", body)
+        return self._req("PUT", f"/repos/{self.repo}/contents/{urllib.parse.quote(path)}", body)
 
     def open_pr(self, head, base, title, body):
         return self._req("POST", f"/repos/{self.repo}/pulls", {"title": title, "head": head, "base": base, "body": body})

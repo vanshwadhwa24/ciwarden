@@ -60,6 +60,23 @@ def _norm(p):
     return p
 
 
+def _canonical(raw):
+    """Reject anything that is not a plain, ASCII, relative, forward-slash path. This runs before any
+    pattern check so encodings and look-alikes cannot reach the allowlist."""
+    if not isinstance(raw, str) or not raw:
+        raise PolicyError("bad path")
+    if not raw.isascii() or any(ord(c) < 32 or c in "\\%:*?\"<>|~$`;" for c in raw):
+        raise PolicyError(f"path has disallowed characters: {raw!r}")
+    if raw != raw.strip() or raw.endswith(".") or " " in raw:
+        raise PolicyError(f"path has spaces or trailing dots: {raw!r}")
+    parts = raw.split("/")
+    if any(seg in ("", ".", "..") for seg in parts) or raw.startswith("/"):
+        raise PolicyError(f"path has empty or dot segments: {raw!r}")
+    if any(seg.startswith(".") for seg in parts):
+        raise PolicyError(f"hidden path segment not allowed: {raw!r}")
+    return raw
+
+
 def check_patch_paths(files):
     """files: list of {path, content}. Raises PolicyError on anything outside the allowlist."""
     if not files:
@@ -67,7 +84,7 @@ def check_patch_paths(files):
     if len(files) > MAX_FILES:
         raise PolicyError("too many files in patch")
     for f in files:
-        p = _norm(f.get("path", ""))
+        p = _canonical(f.get("path", ""))
         if p.startswith("/") or p.startswith("..") or "/../" in p or p == ".":
             raise PolicyError(f"path escapes repo: {p}")
         low = p.lower()

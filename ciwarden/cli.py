@@ -43,7 +43,25 @@ def main(argv=None):
     r.add_argument("--model", default=llm.DEFAULT_MODEL)
     r.add_argument("--replay")
     r.add_argument("--record")
+    w = sub.add_parser("watch")
+    w.add_argument("repo")
+    w.add_argument("--out", default="watch-out")
+    w.add_argument("--interval", type=int, default=60)
+    w.add_argument("--once", action="store_true")
+    w.add_argument("--model", default=llm.DEFAULT_MODEL)
+    w.add_argument("--replay")
     a = ap.parse_args(argv)
+    if a.cmd == "watch":
+        from . import github, watch
+        client = github.Client(a.repo, os.environ.get("GITHUB_TOKEN"))
+        model = llm.ReplayModel(a.replay) if a.replay else llm.OpenCodeModel(a.model)
+        kill = policy.KillSwitch()
+        tok = os.environ.get("GITHUB_TOKEN")
+        if a.once:
+            print(json.dumps(watch.watch_once(client, model, kill, a.out, set(), token=tok), indent=2))
+        else:
+            watch.watch_loop(client, model, kill, a.out, a.interval, token=tok)
+        return 0
     if a.replay:
         model = llm.ReplayModel(a.replay)
     else:

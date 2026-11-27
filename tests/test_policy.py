@@ -8,6 +8,15 @@ class PolicyTests(unittest.TestCase):
             with self.assertRaises(policy.PolicyError, msg=p):
                 policy.check_patch_paths([{"path": p, "content": "x"}])
 
+    def test_path_tricks(self):
+        tricks = ["%2e%2e/etc/passwd", "src/%2e%2e/.github/workflows/ci.yml", "src\\..\\.github\\x.yml", ".GitHub/workflows/ci.yml",
+                  "src/./../.github/x.yml", "src//mod.py", "src/mod.py ", "src/mod.py.", "src/mod.py\x00.txt", "src/m\u043ed.py",
+                  "TESTS/test_mod.py", "Tests/test_mod.py", "src/.hidden.py", "src/mod.py::x", "src/$(id).py", "src/mod.py;rm", "tests/../tests/t.py",
+                  "src/\u202e.py", "../x.py", "/abs.py", "..", "."]
+        for p in tricks:
+            with self.assertRaises(policy.PolicyError, msg=repr(p)):
+                policy.check_patch_paths([{"path": p, "content": "x"}])
+
     def test_allowed_path(self):
         policy.check_patch_paths([{"path": "src/mod.py", "content": "x = 1"}])
 

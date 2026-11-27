@@ -1,0 +1,1 @@
+{"case": "env-python-version", "action": "ESCALATE", "class": "unknown", "reason": "model error: offline baseline: no model configured", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/baseline-offline/env-python-version/ESCALATION.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 0.3, "trace_ok": true}

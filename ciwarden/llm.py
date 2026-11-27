@@ -128,3 +128,12 @@ class StubModel:
 
     def complete(self, prompt):
         return {"text": self.fn(prompt), "tokens": 0, "tool_calls_attempted": 0, "model": "stub"}
+
+
+class OfflineModel:
+    """No model at all. Every call fails like an exhausted quota. Used to measure what the deterministic
+    layer alone (reproduction, flaky detection, tripwire, policy) decides, with zero LLM involvement."""
+    name = "offline"
+
+    def complete(self, prompt):
+        raise ModelError("offline baseline: no model configured")

@@ -30,6 +30,7 @@ def main():
     ap.add_argument("--record")
     ap.add_argument("--tag", default="run")
     ap.add_argument("--model", default=llm.DEFAULT_MODEL)
+    ap.add_argument("--offline", action="store_true", help="no-LLM baseline: model calls always fail")
     a = ap.parse_args()
     cases_dir = os.path.join(HERE, "cases")
     out_root = os.path.join(HERE, "results", a.tag)
@@ -39,6 +40,8 @@ def main():
     ids = [i for i in ids if a.split == "all" or exps[i]["split"] == a.split]
 
     def mk_model():
+        if a.offline:
+            return llm.OfflineModel()
         if a.replay:
             return llm.ReplayModel(a.replay)
         m = llm.OpenCodeModel(a.model)

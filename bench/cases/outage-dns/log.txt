@@ -1,4 +1,0 @@
-Run pip install -r requirements.txt
-WARNING: Retrying after connection broken by NewConnectionError: Temporary failure in name resolution
-ERROR: Could not fetch URL https://pypi.example/simple/baz/
-Process completed with exit code 1.

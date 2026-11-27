@@ -1,6 +1,0 @@
-{
- "id": "env-missing-module",
- "command": "python3 -m unittest discover -s tests -v",
- "commit_message": "Update code",
- "timeout": 30
-}

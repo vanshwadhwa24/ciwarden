@@ -1,4 +1,0 @@
-Run npm ci
-npm ERR! 429 Too Many Requests - GET https://registry.example/bar
-npm ERR! rate limit exceeded, retry after 60s
-Process completed with exit code 1.

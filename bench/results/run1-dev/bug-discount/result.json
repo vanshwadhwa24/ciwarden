@@ -1,1 +1,0 @@
-{"case": "bug-discount", "action": "ESCALATE", "class": "unknown", "reason": "model error: model call timed out", "model_calls": 0, "tokens": 0, "artifact": "/home/sandbox/ciwarden/bench/results/run1-dev/bug-discount/ESCALATION.md", "branches": ["master"], "branch_files": {}, "repo_dirty": false, "seconds": 60.4, "trace_ok": false}

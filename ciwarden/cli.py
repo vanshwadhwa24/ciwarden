@@ -5,10 +5,22 @@ import argparse, json, os, shutil, sys, tempfile
 from . import agent, policy, trace as tr, actions, llm
 
 
+def _ensure_git(repo):
+    """Case fixtures are stored as plain files (gitlinks broke fresh clones); give the copy a repo."""
+    import subprocess
+    if os.path.isdir(os.path.join(repo, ".git")):
+        return
+    env = {**os.environ, "GIT_AUTHOR_NAME": "seed", "GIT_AUTHOR_EMAIL": "seed@example.com",
+           "GIT_COMMITTER_NAME": "seed", "GIT_COMMITTER_EMAIL": "seed@example.com"}
+    for a in (["git", "init", "-q", "-b", "master"], ["git", "add", "-A"], ["git", "commit", "-q", "-m", "seed"]):
+        subprocess.run(a, cwd=repo, check=True, env=env, capture_output=True)
+
+
 def load_case(case_dir, work):
     cfg = json.load(open(os.path.join(case_dir, "ci.json")))
     repo = os.path.join(work, "repo")
     shutil.copytree(os.path.join(case_dir, "repo"), repo)
+    _ensure_git(repo)
     return {"id": cfg["id"], "repo": repo, "command": cfg["command"], "timeout": cfg.get("timeout", 60),
             "commit_message": cfg.get("commit_message", ""), "log": open(os.path.join(case_dir, "log.txt")).read()}
 

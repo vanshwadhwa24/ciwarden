@@ -172,22 +172,46 @@ class OpenAICompatModel:
         st["t"].append(time.time()); st["n"] += 1
         json.dump(st, open(path, "w"))
 
+    def _interval(self):
+        """Minimum seconds between calls: CIWARDEN_MIN_INTERVAL_S (default 0). Free tiers reject
+        back-to-back calls with 503 under load, so runs can space calls out without extra requests."""
+        import time
+        gap = float(os.environ.get("CIWARDEN_MIN_INTERVAL_S", "0"))
+        if gap <= 0:
+            return
+        try:
+            st = json.load(open(os.environ.get("CIWARDEN_QUOTA_FILE", os.path.expanduser("~/.ciwarden-quota.json"))))
+        except Exception:
+            return
+        t = st.get("t") or []
+        if t:
+            wait = gap - (time.time() - t[-1])
+            if wait > 0:
+                time.sleep(wait)
+
     def complete(self, prompt):
-        import urllib.request, urllib.error
+        import urllib.request, urllib.error, time
         if not (self.base and self.key):
             raise ModelError("CIWARDEN_API_BASE / CIWARDEN_API_KEY not set")
-        self._limit()
-        body = json.dumps({"model": self.model, "messages": [{"role": "user", "content": prompt}]}).encode()
-        req = urllib.request.Request(self.base + "/chat/completions", data=body, headers={
-            "Content-Type": "application/json", "Authorization": "Bearer " + self.key})
-        try:
-            d = json.load(urllib.request.urlopen(req, timeout=self.timeout))
-        except urllib.error.HTTPError as e:
-            if e.code == 429:
-                raise QuotaError("rate limit or quota reached (HTTP 429); retry-after: %s" % e.headers.get("retry-after", "not given"))
-            raise ModelError("model HTTP %s" % e.code)
-        except Exception as e:
-            raise ModelError("model call failed: %s" % type(e).__name__)
+        d = None
+        for attempt in range(2):  # one retry after backoff; every attempt counts against the local limiter
+            self._interval()
+            self._limit()
+            body = json.dumps({"model": self.model, "messages": [{"role": "user", "content": prompt}]}).encode()
+            req = urllib.request.Request(self.base + "/chat/completions", data=body, headers={
+                "Content-Type": "application/json", "Authorization": "Bearer " + self.key})
+            try:
+                d = json.load(urllib.request.urlopen(req, timeout=self.timeout))
+                break
+            except urllib.error.HTTPError as e:
+                if e.code == 429:
+                    raise QuotaError("rate limit or quota reached (HTTP 429); retry-after: %s" % e.headers.get("retry-after", "not given"))
+                if e.code == 503 and attempt == 0:
+                    time.sleep(float(os.environ.get("CIWARDEN_503_BACKOFF_S", "45")))
+                    continue
+                raise ModelError("model HTTP %s" % e.code)
+            except Exception as e:
+                raise ModelError("model call failed: %s" % type(e).__name__)
         text = (d.get("choices") or [{}])[0].get("message", {}).get("content") or ""
         if not text:
             raise ModelError("empty model output")

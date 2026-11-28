@@ -89,5 +89,44 @@ class GhTests(unittest.TestCase):
             self.assertEqual(CALLS, [])
 
 
+class LocalEscalationsTests(unittest.TestCase):
+    """CIWARDEN_LOCAL_ESCALATIONS: retry guard. Issues/escalations become local files; PRs stay real."""
+    @classmethod
+    def setUpClass(cls):
+        cls.srv = HTTPServer(("127.0.0.1", 0), H)
+        threading.Thread(target=cls.srv.serve_forever, daemon=True).start()
+        cls.api = f"http://127.0.0.1:{cls.srv.server_port}"
+
+    @classmethod
+    def tearDownClass(cls):
+        cls.srv.shutdown()
+
+    def test_issues_and_escalations_never_post(self):
+        import tempfile
+        from unittest import mock
+        with tempfile.TemporaryDirectory() as d, mock.patch.dict(os.environ, {"CIWARDEN_LOCAL_ESCALATIONS": d}):
+            a = github.GitHubActuator(github.Client("o/r", "t", api=self.api), policy.KillSwitch("/nonexistent/KILL"))
+            CALLS.clear()
+            r1 = a.open_issue("t", "b", ("x",))
+            r2 = a.escalate("model down", "No change made.")
+            self.assertEqual(CALLS, [])
+            self.assertIn("local-only, not posted", r1["artifact"])
+            self.assertIn("local-only, not posted", r2["artifact"])
+            self.assertTrue(os.path.exists(os.path.join(d, "ISSUE.md")))
+            self.assertTrue(os.path.exists(os.path.join(d, "ESCALATION.md")))
+            r3 = a.open_pr("ciwarden/fix-x", [{"path": "src/a.py", "content": "x=1\n"}], "fix: x", "body")
+            self.assertEqual(r3["artifact"], "http://x/pr/1")
+            self.assertTrue([c for c in CALLS if c[1].endswith("pulls")])
+
+    def test_unset_env_posts_normally(self):
+        from unittest import mock
+        with mock.patch.dict(os.environ, {"CIWARDEN_LOCAL_ESCALATIONS": ""}):
+            a = github.GitHubActuator(github.Client("o/r", "t", api=self.api), policy.KillSwitch("/nonexistent/KILL"))
+            CALLS.clear()
+            r = a.escalate("reason", "body")
+            self.assertEqual(r["artifact"], "http://x/i/1")
+            self.assertTrue([c for c in CALLS if c[1].endswith("issues")])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -81,6 +81,14 @@ class GitHubActuator:
 
     def __init__(self, client, kill, base=None):
         self.c, self.kill, self.base = client, kill, base
+        self.out = os.environ.get("CIWARDEN_LOCAL_ESCALATIONS")
+
+    def _local(self, name, kind, text):
+        os.makedirs(self.out, exist_ok=True)
+        p = os.path.join(self.out, name)
+        with open(p, "w") as f:
+            f.write(text)
+        return {"kind": kind, "artifact": "local-only, not posted (retry guard): " + p}
 
     def open_pr(self, branch, files, title, body):
         self.kill.check()
@@ -100,11 +108,15 @@ class GitHubActuator:
 
     def open_issue(self, title, body, labels=()):
         self.kill.check()
+        if self.out:
+            return self._local("ISSUE.md", "issue", f"# {title}\n\nlabels: {', '.join(labels)}\n\n{body}\n")
         i = self.c.open_issue(title, body, labels)
         return {"kind": "issue", "artifact": i.get("html_url")}
 
     def escalate(self, reason, body):
         self.kill.check()
+        if self.out:
+            return self._local("ESCALATION.md", "escalation", f"# Escalation: needs a human\n\nreason: {reason}\n\n{body}\n")
         i = self.c.open_issue("[ciwarden] needs a human: " + reason[:80], f"{reason}\n\n{body}", ["needs-human"])
         return {"kind": "escalation", "artifact": i.get("html_url")}
 
